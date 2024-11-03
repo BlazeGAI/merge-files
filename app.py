@@ -84,7 +84,7 @@ def process_zip_file(uploaded_zip, selected_file_type):
     return output_zip_path
 
 # Streamlit app interface
-st.title('BlazeGAI File Merger')
+st.title('BlazeGAI File Extractor')
 st.write('Upload a zip file containing student submissions and select the type of files to extract')
 
 # File type selector
