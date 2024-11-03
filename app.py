@@ -2,6 +2,7 @@ import streamlit as st
 import zipfile
 import os
 import shutil
+import re
 
 # Dictionary of file types and their extensions
 FILE_TYPES = {
@@ -9,6 +10,14 @@ FILE_TYPES = {
     'Word Files': ['.docx', '.doc'],
     'PowerPoint Files': ['.pptx', '.ppt']
 }
+
+def clean_student_name(folder_name):
+    # Extract student name from folder pattern "Name_ID_assignsubmission_file"
+    match = re.match(r"([^_]+_[^_]+)_\d+_assignsubmission_file", folder_name)
+    if match:
+        # Get the name part and replace space with underscore
+        return match.group(1).replace(" ", "_")
+    return folder_name
 
 def process_zip_file(uploaded_zip, selected_file_type):
     # Get the file extensions for the selected type
@@ -22,6 +31,9 @@ def process_zip_file(uploaded_zip, selected_file_type):
     if not os.path.exists('output'):
         os.makedirs('output')
     
+    # Dictionary to store folder paths and their files
+    folder_files = {}
+    
     # Read and extract the uploaded zip file
     with zipfile.ZipFile(uploaded_zip, 'r') as zip_ref:
         # Get list of all files in zip
@@ -30,22 +42,46 @@ def process_zip_file(uploaded_zip, selected_file_type):
         # Extract only files with target extensions
         for file in file_list:
             if any(file.lower().endswith(ext) for ext in target_extensions):
+                # Get the folder path and filename
+                folder_path = os.path.dirname(file)
+                file_name = os.path.basename(file)
+                
+                # Skip if it's just a directory
+                if not file_name:
+                    continue
+                
+                # Extract the file
                 zip_ref.extract(file, 'temp_files')
+                
+                # Store the folder path and filename
+                if folder_path not in folder_files:
+                    folder_files[folder_path] = []
+                folder_files[folder_path].append((file, file_name))
     
-    # Create new zip file with extracted files
+    # Create new zip file with renamed files
     output_zip_path = os.path.join('output', f'extracted_{selected_file_type.lower().replace(" ", "_")}.zip')
     with zipfile.ZipFile(output_zip_path, 'w') as zipf:
-        for root, dirs, files in os.walk('temp_files'):
-            for file in files:
-                if any(file.lower().endswith(ext) for ext in target_extensions):
-                    file_path = os.path.join(root, file)
-                    zipf.write(file_path, os.path.basename(file_path))
+        for folder_path, files in folder_files.items():
+            # Get student name from folder path
+            folder_name = os.path.basename(folder_path)
+            student_name = clean_student_name(folder_name)
+            
+            for full_path, original_name in files:
+                # Get file extension
+                file_ext = os.path.splitext(original_name)[1]
+                
+                # Create new filename: StudentName_OriginalFileName.extension
+                new_name = f"{student_name}_{original_name}"
+                
+                # Add file to zip with new name
+                file_path = os.path.join('temp_files', full_path)
+                zipf.write(file_path, new_name)
     
     return output_zip_path
 
 # Streamlit app interface
-st.title('Office File Extractor')
-st.write('Upload a zip file and select the type of files you want to extract')
+st.title('Student File Extractor')
+st.write('Upload a zip file containing student submissions and select the type of files to extract')
 
 # File type selector
 selected_type = st.selectbox(
@@ -91,4 +127,9 @@ st.markdown("""
 - Excel: .xlsx, .xls
 - Word: .docx, .doc
 - PowerPoint: .pptx, .ppt
+
+### File Naming:
+Files will be renamed using the pattern: StudentName_OriginalFileName.extension
+Example: For a folder named "Abigail Miller_3681650_assignsubmission_file", 
+the file "assignment1.xlsx" will become "Abigail_Miller_assignment1.xlsx"
 """)
