@@ -12,12 +12,16 @@ FILE_TYPES = {
 }
 
 def clean_student_name(folder_name):
-    # Extract student name from folder pattern "Name_ID_assignsubmission_file"
-    match = re.match(r"([^_]+_[^_]+)_\d+_assignsubmission_file", folder_name)
+    # Extract just the student name from the folder pattern
+    match = re.match(r"([^_]+_[^_]+)", folder_name)
     if match:
         # Get the name part and replace space with underscore
         return match.group(1).replace(" ", "_")
     return folder_name
+
+def clean_file_name(file_name):
+    # Remove 'assignsubmission_file_' from the filename if it exists
+    return file_name.replace('assignsubmission_file_', '')
 
 def process_zip_file(uploaded_zip, selected_file_type):
     # Get the file extensions for the selected type
@@ -67,11 +71,11 @@ def process_zip_file(uploaded_zip, selected_file_type):
             student_name = clean_student_name(folder_name)
             
             for full_path, original_name in files:
-                # Get file extension
-                file_ext = os.path.splitext(original_name)[1]
+                # Clean the original filename
+                cleaned_original_name = clean_file_name(original_name)
                 
-                # Create new filename: StudentName_OriginalFileName.extension
-                new_name = f"{student_name}_{original_name}"
+                # Create new filename: StudentName_OriginalFileName
+                new_name = f"{student_name}_{cleaned_original_name}"
                 
                 # Add file to zip with new name
                 file_path = os.path.join('temp_files', full_path)
@@ -129,7 +133,6 @@ st.markdown("""
 - PowerPoint: .pptx, .ppt
 
 ### File Naming:
-Files will be renamed using the pattern: StudentName_OriginalFileName.extension
-Example: For a folder named "Abigail Miller_3681650_assignsubmission_file", 
-the file "assignment1.xlsx" will become "Abigail_Miller_assignment1.xlsx"
+Files will be renamed using the pattern: StudentName_FileName.extension
+Example: For a student "Abigail Miller", a file will be renamed to "Abigail_Miller_assignment1.xlsx"
 """)
